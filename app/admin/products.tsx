@@ -1,0 +1,269 @@
+import React, { useEffect, useState, useContext } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, Alert, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import axios from 'axios';
+import { AdminGuard } from '../../components/AdminGuard';
+import { API } from '../../constants/api';
+import { AuthContext } from '../../context/AuthContext';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
+import { NotificationBanner } from '../../components/NotificationBanner';
+
+// Product interfaces
+interface Product {
+  _id: string;
+  prodName: string;
+  prodDesc?: string;
+  prodPrice: number;
+  prodQty: number;
+  image: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface ProductFormInputs {
+  prodName: string;
+  prodDesc?: string;
+  prodPrice: number | '';
+  prodQty: number | '';
+  image?: ImagePicker.ImagePickerAsset | null;
+}
+
+export default function AdminProducts() {
+  const { user } = useContext(AuthContext);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [form, setForm] = useState<ProductFormInputs>({ prodName: '', prodDesc: '', prodPrice: '', prodQty: '', image: null });
+  const [loading, setLoading] = useState(false);
+  const [banner, setBanner] = useState<{visible: boolean; type: 'success'|'error'|'info'; message: string}>({ visible: false, type: 'info', message: '' });
+
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<ProductFormInputs>({ prodName: '', prodDesc: '', prodPrice: '', prodQty: '', image: null });
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const res = await axios.get(API.products.all);
+      setProducts(res.data.products || []);
+    } catch (err) {
+      console.error('Fetch products failed:', err);
+      setBanner({ visible: true, type: 'error', message: 'Failed to load products' });
+    }
+  };
+
+  const pickImage = async (onPicked: (asset: ImagePicker.ImagePickerAsset) => void) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets && result.assets[0]) {
+      onPicked(result.assets[0]);
+    }
+  };
+
+  const buildFormData = async (data: ProductFormInputs) => {
+    const fd = new FormData();
+    fd.append('prodName', String(data.prodName));
+    if (data.prodDesc) fd.append('prodDesc', String(data.prodDesc));
+    fd.append('prodPrice', String(data.prodPrice));
+    fd.append('prodQty', String(data.prodQty));
+    if (data.image) {
+      const uri = data.image.uri;
+      const name = data.image.fileName || uri.split('/').pop() || 'image.jpg';
+      const type = data.image.mimeType || 'image/jpeg';
+      // @ts-ignore RN FormData file
+      fd.append('image', { uri, name, type });
+    }
+    return fd;
+  };
+
+  const createProduct = async () => {
+    if (!form.prodName || !form.prodPrice || !form.prodQty || !form.image) {
+      setBanner({ visible: true, type: 'error', message: 'Name, price, quantity and image are required' });
+      return;
+    }
+    try {
+      setLoading(true);
+      const fd = await buildFormData(form);
+      await axios.post(API.products.create, fd, {
+        headers: {
+          Authorization: `Bearer ${user?.accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setBanner({ visible: true, type: 'success', message: 'Product created' });
+      setForm({ prodName: '', prodDesc: '', prodPrice: '', prodQty: '', image: null });
+      fetchProducts();
+    } catch (err: any) {
+      console.error('Create product failed:', err);
+      setBanner({ visible: true, type: 'error', message: err.response?.data?.message || 'Failed to create product' });
+    } finally { setLoading(false); }
+  };
+
+  const startEdit = (p: Product) => {
+    setEditingId(p._id);
+    setEditForm({ prodName: p.prodName, prodDesc: p.prodDesc || '', prodPrice: p.prodPrice, prodQty: p.prodQty, image: null });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm({ prodName: '', prodDesc: '', prodPrice: '', prodQty: '', image: null });
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    try {
+      setLoading(true);
+      const fd = await buildFormData(editForm);
+      await axios.put(API.products.update(editingId), fd, {
+        headers: {
+          Authorization: `Bearer ${user?.accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setBanner({ visible: true, type: 'success', message: 'Product updated' });
+      cancelEdit();
+      fetchProducts();
+    } catch (err: any) {
+      console.error('Update product failed:', err);
+      setBanner({ visible: true, type: 'error', message: err.response?.data?.message || 'Failed to update product' });
+    } finally { setLoading(false); }
+  };
+
+  const deleteProduct = async (id: string) => {
+    Alert.alert('Delete', 'Are you sure you want to delete this product?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await axios.delete(API.products.delete(id), {
+            headers: { Authorization: `Bearer ${user?.accessToken}` },
+          });
+          setBanner({ visible: true, type: 'success', message: 'Product deleted' });
+          fetchProducts();
+        } catch (err: any) {
+          console.error('Delete product failed:', err);
+          setBanner({ visible: true, type: 'error', message: err.response?.data?.message || 'Failed to delete product' });
+        }
+      }}
+    ]);
+  };
+
+  const renderItem = ({ item }: { item: Product }) => {
+    const isEditing = editingId === item._id;
+    return (
+      <View style={styles.card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={styles.thumb} />
+          ) : (
+            <View style={styles.thumbPlaceholder}><Ionicons name="cube-outline" size={28} color="#999" /></View>
+          )}
+          <View style={{ marginLeft: 10, flex: 1 }}>
+            {isEditing ? (
+              <>
+                <TextInput style={styles.input} placeholder="Name" value={String(editForm.prodName)} onChangeText={(t)=>setEditForm(s=>({...s, prodName:t}))} />
+                <TextInput style={styles.input} placeholder="Description" value={String(editForm.prodDesc||'')} onChangeText={(t)=>setEditForm(s=>({...s, prodDesc:t}))} />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput style={[styles.input, {flex:1}]} placeholder="Price" keyboardType="numeric" value={String(editForm.prodPrice||'')} onChangeText={(t)=>setEditForm(s=>({...s, prodPrice: t as any}))} />
+                  <TextInput style={[styles.input, {flex:1}]} placeholder="Qty" keyboardType="numeric" value={String(editForm.prodQty||'')} onChangeText={(t)=>setEditForm(s=>({...s, prodQty: t as any}))} />
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 6 }}>
+                  <TouchableOpacity style={styles.btnLight} onPress={()=>pickImage((asset)=>setEditForm(s=>({...s, image: asset})))}>
+                    <Ionicons name="image-outline" size={16} color="#333" />
+                    <Text style={{ marginLeft: 6 }}>Pick Image</Text>
+                  </TouchableOpacity>
+                  {editForm.image ? <Text numberOfLines={1} style={{ color:'#666', flex:1 }}>{editForm.image.fileName || editForm.image.uri.split('/').pop()}</Text> : null}
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <TouchableOpacity style={[styles.btn, {flex:1}]} onPress={saveEdit} disabled={loading}>
+                    <Text style={styles.btnText}>{loading ? 'Saving…' : 'Save'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.btnDanger, {flex:1}]} onPress={cancelEdit}>
+                    <Text style={styles.btnText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.cardTitle}>{item.prodName}</Text>
+                <Text style={styles.cardMeta}>${item.prodPrice.toFixed(2)} • Qty: {item.prodQty}</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                  <TouchableOpacity style={styles.btn} onPress={()=>startEdit(item)}>
+                    <Text style={styles.btnText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.btnDanger} onPress={()=>deleteProduct(item._id)}>
+                    <Text style={styles.btnText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <AdminGuard>
+      <SafeAreaView style={styles.container}>
+        <NotificationBanner
+          visible={banner.visible}
+          type={banner.type}
+          message={banner.message}
+          onClose={() => setBanner({ ...banner, visible: false })}
+        />
+        <Text style={styles.title}>Products</Text>
+
+        {/* Create product form */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Add Product</Text>
+          <TextInput style={styles.input} placeholder="Name" value={form.prodName} onChangeText={(t)=>setForm(s=>({...s, prodName:t}))} />
+          <TextInput style={styles.input} placeholder="Description" value={form.prodDesc} onChangeText={(t)=>setForm(s=>({...s, prodDesc:t}))} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput style={[styles.input, {flex:1}]} placeholder="Price" keyboardType="numeric" value={String(form.prodPrice)} onChangeText={(t)=>setForm(s=>({...s, prodPrice: t as any}))} />
+            <TextInput style={[styles.input, {flex:1}]} placeholder="Qty" keyboardType="numeric" value={String(form.prodQty)} onChangeText={(t)=>setForm(s=>({...s, prodQty: t as any}))} />
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <TouchableOpacity style={styles.btnLight} onPress={()=>pickImage((asset)=>setForm(s=>({...s, image: asset})))}>
+              <Ionicons name="image-outline" size={16} color="#333" />
+              <Text style={{ marginLeft: 6 }}>Pick Image</Text>
+            </TouchableOpacity>
+            {form.image ? <Text numberOfLines={1} style={{ color:'#666', flex:1 }}>{form.image.fileName || form.image.uri.split('/').pop()}</Text> : null}
+          </View>
+          <TouchableOpacity style={[styles.btn, { marginTop: 8 }]} onPress={createProduct} disabled={loading}>
+            <Text style={styles.btnText}>{loading ? 'Saving…' : 'Add Product'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Product list */}
+        <FlatList
+          data={products}
+          keyExtractor={(item) => item._id}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }}
+        />
+      </SafeAreaView>
+    </AdminGuard>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
+  title: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  section: { backgroundColor: '#fafafa', padding: 12, borderRadius: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, marginBottom: 8 },
+  btn: { backgroundColor: '#FF6B4A', padding: 12, borderRadius: 8, alignItems: 'center' },
+  btnDanger: { backgroundColor: '#e74c3c', padding: 12, borderRadius: 8, alignItems: 'center' },
+  btnLight: { backgroundColor: '#eee', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center' },
+  btnText: { color: '#fff', fontWeight: '600' },
+  card: { backgroundColor: '#f7f7f7', padding: 12, borderRadius: 10, marginTop: 10 },
+  cardTitle: { fontSize: 16, fontWeight: '700' },
+  cardMeta: { fontSize: 12, color: '#666', marginTop: 2 },
+  thumb: { width: 56, height: 56, borderRadius: 6, backgroundColor: '#eee' },
+  thumbPlaceholder: { width: 56, height: 56, borderRadius: 6, backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center' },
+});
