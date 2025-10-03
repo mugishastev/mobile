@@ -34,7 +34,7 @@ export default function CategorySections() {
   const fetchRecommendProducts = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('https://backend-ahjc.onrender.com/api/products/all');
+      const res = await axios.get('https://backend-h09f.onrender.com/api/products/all');
       setRecommendItems(res.data.products || []);
     } catch (err) {
       console.error('Failed to fetch products:', err);

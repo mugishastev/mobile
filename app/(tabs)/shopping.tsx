@@ -29,7 +29,7 @@ export default function ShoppingScreen() {
 
   const fetchProducts = async () => {
     try {
-      const res = await axios.get("https://backend-ahjc.onrender.com/api/products/all");
+      const res = await axios.get("https://backend-h09f.onrender.com/api/products/all");
       setProducts(res.data.products);
     } catch (err) {
       console.error(err);

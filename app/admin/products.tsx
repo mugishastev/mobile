@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, Alert, Image } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, Alert, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
 import { AdminGuard } from '../../components/AdminGuard';
@@ -8,6 +8,7 @@ import { AuthContext } from '../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { NotificationBanner } from '../../components/NotificationBanner';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Product interfaces
 interface Product {
@@ -216,11 +217,22 @@ export default function AdminProducts() {
           message={banner.message}
           onClose={() => setBanner({ ...banner, visible: false })}
         />
-        <Text style={styles.title}>Products</Text>
-
-        {/* Create product form */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Add Product</Text>
+        
+        {/* Header */}
+        <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.title}>Product Management</Text>
+            <Text style={styles.subtitle}>{products.length} products</Text>
+          </View>
+        </LinearGradient>
+        
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Create product form */}
+          <LinearGradient colors={['#FFFDE7', '#FFF9C4']} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="add-circle-outline" size={20} color="#FFD700" />
+              <Text style={styles.sectionTitle}>Add New Product</Text>
+            </View>
           <TextInput style={styles.input} placeholder="Name" value={form.prodName} onChangeText={(t)=>setForm(s=>({...s, prodName:t}))} />
           <TextInput style={styles.input} placeholder="Description" value={form.prodDesc} onChangeText={(t)=>setForm(s=>({...s, prodDesc:t}))} />
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -234,36 +246,190 @@ export default function AdminProducts() {
             </TouchableOpacity>
             {form.image ? <Text numberOfLines={1} style={{ color:'#666', flex:1 }}>{form.image.fileName || form.image.uri.split('/').pop()}</Text> : null}
           </View>
-          <TouchableOpacity style={[styles.btn, { marginTop: 8 }]} onPress={createProduct} disabled={loading}>
-            <Text style={styles.btnText}>{loading ? 'Saving…' : 'Add Product'}</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity style={styles.btn} onPress={createProduct} disabled={loading}>
+              <LinearGradient colors={['#FFD700', '#FFC107']} style={styles.btnGradient}>
+                <Ionicons name="add" size={16} color="#333" />
+                <Text style={styles.btnText}>{loading ? 'Saving…' : 'Add Product'}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </LinearGradient>
 
-        {/* Product list */}
-        <FlatList
-          data={products}
-          keyExtractor={(item) => item._id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }}
-        />
+          {/* Product list */}
+          <View style={styles.listSection}>
+            <View style={styles.listHeader}>
+              <Ionicons name="cube-outline" size={20} color="#FFD700" />
+              <Text style={styles.listTitle}>Product List</Text>
+            </View>
+            <FlatList
+              data={products}
+              keyExtractor={(item) => item._id}
+              renderItem={renderItem}
+              scrollEnabled={false}
+              contentContainerStyle={styles.listContent}
+            />
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </AdminGuard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
-  title: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
-  section: { backgroundColor: '#fafafa', padding: 12, borderRadius: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, marginBottom: 8 },
-  btn: { backgroundColor: '#FF6B4A', padding: 12, borderRadius: 8, alignItems: 'center' },
-  btnDanger: { backgroundColor: '#e74c3c', padding: 12, borderRadius: 8, alignItems: 'center' },
-  btnLight: { backgroundColor: '#eee', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center' },
-  btnText: { color: '#fff', fontWeight: '600' },
-  card: { backgroundColor: '#f7f7f7', padding: 12, borderRadius: 10, marginTop: 10 },
-  cardTitle: { fontSize: 16, fontWeight: '700' },
-  cardMeta: { fontSize: 12, color: '#666', marginTop: 2 },
-  thumb: { width: 56, height: 56, borderRadius: 6, backgroundColor: '#eee' },
-  thumbPlaceholder: { width: 56, height: 56, borderRadius: 6, backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#F8F9FA' 
+  },
+  header: {
+    paddingTop: 20,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  headerContent: {
+    gap: 4,
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: '#333' 
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#333',
+    opacity: 0.7,
+  },
+  content: {
+    flex: 1,
+    paddingTop: 20,
+  },
+  section: { 
+    marginHorizontal: 20,
+    padding: 20, 
+    borderRadius: 16,
+    marginBottom: 20,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  sectionTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#333' 
+  },
+  input: { 
+    borderWidth: 2, 
+    borderColor: '#FFE082', 
+    borderRadius: 12, 
+    padding: 14, 
+    marginBottom: 12,
+    backgroundColor: '#fff',
+    fontSize: 16,
+    color: '#333',
+  },
+  btn: { 
+    borderRadius: 12, 
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  btnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 8,
+  },
+  btnDanger: { 
+    backgroundColor: '#e74c3c', 
+    padding: 12, 
+    borderRadius: 8, 
+    alignItems: 'center' 
+  },
+  btnLight: { 
+    backgroundColor: 'rgba(255, 215, 0, 0.2)', 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    borderRadius: 10, 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  btnText: { 
+    color: '#333', 
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  listSection: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  listTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  listContent: {
+    gap: 12,
+  },
+  card: { 
+    backgroundColor: '#fff', 
+    padding: 16, 
+    borderRadius: 16,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFD700',
+  },
+  cardTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  cardMeta: { 
+    fontSize: 14, 
+    color: '#666', 
+    marginBottom: 8,
+  },
+  thumb: { 
+    width: 60, 
+    height: 60, 
+    borderRadius: 12, 
+    backgroundColor: '#f0f0f0',
+    borderWidth: 2,
+    borderColor: '#FFE082',
+  },
+  thumbPlaceholder: { 
+    width: 60, 
+    height: 60, 
+    borderRadius: 12, 
+    backgroundColor: '#f0f0f0', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFE082',
+  },
 });

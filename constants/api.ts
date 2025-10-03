@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://backend-ahjc.onrender.com';
+export const BASE_URL = 'https://backend-h09f.onrender.com';
 
 // Centralized API paths (adjust here if your backend routes differ)
 export const API = {

@@ -16,7 +16,7 @@ export default function ProfileScreen() {
           <ProfileOption label="Wish List" icon="heart-outline" />
           <ProfileOption label="Store Followed" icon="storefront-outline" />
           <ProfileOption label="Recently Viewed" icon="eye-outline" />
-          <ProfileOption label="My Coupons" icon="price-outline" />
+          <ProfileOption label="My Coupons" icon="pricetag-outline" />
           <ProfileOption label="Address Management" icon="location-outline" />
           <ProfileOption label="Service Center" icon="headset-outline" />
           <ProfileOption label="Invite Friend" icon="person-add-outline" />

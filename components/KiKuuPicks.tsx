@@ -50,7 +50,7 @@ export function KiKuuPicks() {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get('https://backend-ahjc.onrender.com/api/products/all');
+      const res = await axios.get('https://backend-h09f.onrender.com/api/products/all');
       setProducts(res.data.products || []);
     } catch (err) {
       console.error('Failed to load products:', err);
